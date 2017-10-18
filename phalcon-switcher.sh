@@ -1,67 +1,137 @@
 #!/usr/bin/env bash
-echo "-------------------------------------"
-echo "Phalcon Switcher"
-echo "Version 1.0.0"
-echo "By Adeyemi Olaoye <yemexx1@gmail.com>"
-echo "-------------------------------------"
 
-version_to_switch_to=$1
+current_version='';
+new_version='';
 
-if [ -z ${version_to_switch_to} ]; then
-    echo "Version not supplied"
-    echo "Aborting..."
-    exit
-fi
+download_dir='/usr/local/bin/cphalcon/*';
 
-echo "Version To switch to: ${version_to_switch_to}"
+function printOut()
+{
+    echo -e "$1"
+}
+
+
+function abort()
+{
+    printOut "Aborting"
+    exit 0
+}
+
+function usage()
+{
+    printOut "Usage: $0 [option...]" >&2
+    printOut $'   -h, --help        Print this information'
+    printOut $"   -l, --list        List all the downloaded versions"
+    printOut $"   -c, --current     Print active version"
+    printOut $'   -s, --switch      Switch to the specified version'
+    printOut ""
+}
+
+function list_versions()
+{
+    printOut "Currently downloaded versions"
+    for d in ${download_dir} ; do
+        printOut ${d#*'-v'}
+    done
+}
+
+function switch_version()
+{
+    #Validate the provided version
+    if [ -z $new_version ]; then
+        printOut "Version not supplied"
+        abort
+    fi
+
+    printOut "Current Version: ${current_version}"
+    printOut "Attempting switch to version ${new_version}"
+
+    if [ ${current_version} == ${new_version} ]; then
+        printOut "Already on ${current_version}"
+        exit
+    fi
+
+    #S
+    if [[ ${new_version:0:1} == "3" ]]; then
+        new_version="v${new_version}"
+    elif [ ${new_version:0:1} == "1" ] || [ ${new_version:0:1} == "2" ]; then
+        new_version="phalcon-v${new_version}"
+    fi
+
+    #Download
+    if git ls-remote https://github.com/phalcon/cphalcon.git | grep -sw "${new_version}" 2>&1>/dev/null; then
+        printOut "Attempting to download source ..."
+    else
+        printOut "Phalcon version does not exit. Please check https://github.com/phalcon/cphalcon/releases for valid versions"
+        abort
+    fi
+
+    #Check if source exists
+    if [ -d "/usr/local/bin/cphalcon/cphalcon-${new_version}" ]; then
+        printOut "Source already exists... "
+    else
+        #Clone version from GitHub
+        git clone -b "${new_version}" --single-branch --depth 1 https://github.com/phalcon/cphalcon.git "${new_version}/cphalcon-${new_version}"
+    fi
+
+
+    cd "/usr/local/bin/cphalcon/cphalcon-${new_version}"
+
+    printOut "Source download complete. Starting build..."
+    cd build
+    sudo ./install
+
+    printOut "Installing extension..."
+    extension_dir=`php-config --extension-dir`
+    scan_dir=`php --ini | grep "Scan"`
+    scan_dir=${scan_dir:35:${#scan_dir}}
+    echo "
+    [phalcon]
+    extension=${extension_dir}/phalcon.so
+    " | tee "${scan_dir}/ext-phalcon.ini" > /dev/null
+
+    printOut "Install done!"
+    current_version=`php -r "echo phpversion('phalcon');"`
+    printOut "Phalcon Version is now: ${current_version}"
+
+    printOut "Remember to restart your webserver"
+    printOut "Thank you for using Phalcon Switcher!"
+}
+
+printOut "-------------------------------------"
+printOut "Phalcon Switcher"
+printOut "Version 1.0.1"
+printOut "Author: Adeyemi Olaoye <yemexx1@gmail.com>"
+printOut "Contributor: Olawale Lawal <lawalolawale@gmail.com>"
+printOut "-------------------------------------"
+printOut ""
 
 current_version=`php -r "echo phpversion('phalcon');"`
 
-echo "Current Version: ${current_version}"
-
-if [ ${current_version} == ${version_to_switch_to} ]; then
-    echo "Already on ${current_version}"
-    exit
-fi
-
-if [[ ${version_to_switch_to:0:1} == "3" ]]; then
-    version_to_switch_to="v${version_to_switch_to}"
-elif [ ${version_to_switch_to:0:1} == "1" ] || [ ${version_to_switch_to:0:1} == "2" ]; then
-    version_to_switch_to="phalcon-v${version_to_switch_to}"
-fi
-
-if git ls-remote https://github.com/phalcon/cphalcon.git | grep -sw "${version_to_switch_to}" 2>&1>/dev/null; then
-    echo "Starting source download..."
-else
-    echo "Phalcon version does not exit. Please check https://github.com/phalcon/cphalcon/releases for valid versions"
-    echo "Aborting..."
-    exit
-fi
-
-if [ -d "/usr/local/bin/cphalcon/cphalcon-${version_to_switch_to}" ]; then
-    echo "Source already exists... "
-else
-    git clone -b "${version_to_switch_to}" --single-branch --depth 1 https://github.com/phalcon/cphalcon.git "/usr/local/bin/cphalcon/cphalcon-${version_to_switch_to}"
-fi
-
-cd "/usr/local/bin/cphalcon/cphalcon-${version_to_switch_to}"
-
-echo "Source download complete. Starting build..."
-cd build
-sudo ./install
-
-echo "Installing extension..."
-extension_dir=`php-config --extension-dir`
-scan_dir=`php --ini | grep "Scan"`
-scan_dir=${scan_dir:35:${#scan_dir}}
-echo "
-[phalcon]
-extension=${extension_dir}/phalcon.so
-" | tee "${scan_dir}/ext-phalcon.ini" > /dev/null
-
-echo "Install done!"
-current_version=`php -r "echo phpversion('phalcon');"`
-echo "Phalcon Version is now: ${current_version}"
-
-echo "Remember to restart your webserver"
-echo "Thank you for using Phalcon Switcher!"
+while [ "$1" != "" ]; do
+    PARAM=`echo $1 | awk -F= '{print $1}'`
+    VALUE=`echo $1 | awk -F= '{print $2}'`
+    case $PARAM in
+        -h | --help) #Help
+            usage
+            exit 0
+            ;;
+        -c | --current) #Current version
+            printOut "${current_version}"
+            ;;
+        -l | --list) #List the downloaded versions
+            list_versions
+            ;;
+        -s | --switch) #Switch version
+            new_version=$2
+            switch_version
+            ;;
+        *)
+            printOut "ERROR: unknown parameter \"$PARAM\""
+            usage
+            exit 1
+            ;;
+    esac
+    shift
+done
+exit;
