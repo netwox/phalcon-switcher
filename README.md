@@ -22,7 +22,7 @@ sudo ln -s `pwd`/phalcon-switcher.sh /usr/local/bin/phalcon-switcher
 ```
 
 ## Usage
-`sudo phalcon-switcher <version_to_install>`
+`sudo phalcon-switcher -h`
 
 ## Change log
 
