@@ -51,27 +51,27 @@ function switch_version()
         exit
     fi
 
-    #S
+    #getDir
     if [[ ${new_version:0:1} == "3" ]]; then
         new_version="v${new_version}"
     elif [ ${new_version:0:1} == "1" ] || [ ${new_version:0:1} == "2" ]; then
         new_version="phalcon-v${new_version}"
     fi
 
-    #Download
-    if git ls-remote https://github.com/phalcon/cphalcon.git | grep -sw "${new_version}" 2>&1>/dev/null; then
-        printOut "Attempting to download source ..."
-    else
-        printOut "Phalcon version does not exit. Please check https://github.com/phalcon/cphalcon/releases for valid versions"
-        abort
-    fi
-
     #Check if source exists
     if [ -d "/usr/local/bin/cphalcon/cphalcon-${new_version}" ]; then
         printOut "Source already exists... "
     else
+        #Download
+        if git ls-remote https://github.com/phalcon/cphalcon.git | grep -sw "${new_version}" 2>&1>/dev/null; then
+            printOut "Attempting to download source ..."
+        else
+            printOut "Phalcon version does not exit. Please check https://github.com/phalcon/cphalcon/releases for valid versions"
+            abort
+        fi
+
         #Clone version from GitHub
-        git clone -b "${new_version}" --single-branch --depth 1 https://github.com/phalcon/cphalcon.git "${new_version}/cphalcon-${new_version}"
+        git clone -b "${new_version}" --single-branch --depth 1 https://github.com/phalcon/cphalcon.git "${download_dir}/cphalcon-${new_version}"
     fi
 
 
@@ -85,10 +85,10 @@ function switch_version()
     extension_dir=`php-config --extension-dir`
     scan_dir=`php --ini | grep "Scan"`
     scan_dir=${scan_dir:35:${#scan_dir}}
-    echo "
-    [phalcon]
-    extension=${extension_dir}/phalcon.so
-    " | tee "${scan_dir}/ext-phalcon.ini" > /dev/null
+echo "
+[phalcon]
+extension=${extension_dir}/phalcon.so
+" | tee "${scan_dir}/ext-phalcon.ini" > /dev/null
 
     printOut "Install done!"
     current_version=`php -r "echo phpversion('phalcon');"`
@@ -101,8 +101,8 @@ function switch_version()
 printOut "-------------------------------------"
 printOut "Phalcon Switcher"
 printOut "Version 1.0.1"
-printOut "Author: Adeyemi Olaoye <yemexx1@gmail.com>"
-printOut "Contributor: Olawale Lawal <lawalolawale@gmail.com>"
+printOut "Author: Adeyemi Olaoye <yemexx1 at gmail dot com>"
+printOut "Contributor: Olawale Lawal <lawalolawale at gmail dot com>"
 printOut "-------------------------------------"
 printOut ""
 
@@ -122,9 +122,10 @@ while [ "$1" != "" ]; do
         -l | --list) #List the downloaded versions
             list_versions
             ;;
-        -s | --switch) #Switch version
+        -s | --switch) #Switch the
             new_version=$2
             switch_version
+            exit 0
             ;;
         *)
             printOut "ERROR: unknown parameter \"$PARAM\""
